@@ -1,0 +1,29 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+}
+
+.sla-panel {
+  padding: 12px;
+}
+
+.sla-title {
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.sla-deadline {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 4px 0;
+}
+
+.sla-meta {
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.sla-error {
+  font-size: 13px;
+}
