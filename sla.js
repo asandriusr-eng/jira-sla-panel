@@ -1,97 +1,104 @@
 const SLA_FIELD = "customfield_10778";
-const REFRESH_INTERVAL = 60000; // 1 minute
 
-function jiraGet(url) {
-  return AdaptavistBridge.request({
-    url,
-    type: "GET"
-  });
-}
-
-function formatDate(value) {
-  if (!value) return "—";
-
-  return new Intl.DateTimeFormat("lt-LT", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "Europe/Vilnius"
-  }).format(new Date(value));
-}
+const output = document.getElementById("sla-content");
 
 async function loadSla() {
-  const output = document.getElementById("sla-content");
+    try {
+        // 1. Patikrinam, ar ScriptRunner duoda dabartinį work item
+        const currentKey = AdaptavistBridgeContext.context.issueKey;
 
-  try {
-    const currentKey = AdaptavistBridgeContext.context.issueKey;
+        output.innerHTML =
+            `1. Current work item: <b>${currentKey}</b>`;
 
-    const currentIssue = await jiraGet(
-      `/rest/api/2/issue/${currentKey}?fields=issuelinks`
-    );
+        // 2. Pasiimam dabartinio work item linkus
+        const currentIssue = await AdaptavistBridge.request({
+            url: `/rest/api/2/issue/${currentKey}?fields=issuelinks`,
+            type: "GET"
+        });
 
-    const links = currentIssue.fields.issuelinks || [];
+        const links = currentIssue.fields?.issuelinks || [];
 
-    const supportLink = links.find(link => {
-      if (link.type?.name !== "Problem/Incident") return false;
+        output.innerHTML +=
+            `<br>2. Links found: <b>${links.length}</b>`;
 
-      const linked = link.outwardIssue || link.inwardIssue;
-      return linked?.key?.startsWith("AS-");
-    });
+        // 3. Randame AS-xxxxx
+        let asKey = null;
 
-    if (!supportLink) {
-      output.innerHTML =
-        '<div class="sla-meta">Susieta AS Support užklausa nerasta.</div>';
-      return;
+        for (const link of links) {
+            const inward = link.inwardIssue?.key;
+            const outward = link.outwardIssue?.key;
+
+            if (inward?.startsWith("AS-")) {
+                asKey = inward;
+                break;
+            }
+
+            if (outward?.startsWith("AS-")) {
+                asKey = outward;
+                break;
+            }
+        }
+
+        if (!asKey) {
+            output.innerHTML +=
+                `<br>3. <b>AS Support link nerastas</b>`;
+            return;
+        }
+
+        output.innerHTML +=
+            `<br>3. Support work item: <b>${asKey}</b>`;
+
+        // 4. Pasiimam AS Internal SLA
+        const supportIssue = await AdaptavistBridge.request({
+            url: `/rest/api/2/issue/${asKey}?fields=${SLA_FIELD},status`,
+            type: "GET"
+        });
+
+        output.innerHTML +=
+            `<br>4. AS issue loaded`;
+
+        const sla = supportIssue.fields?.[SLA_FIELD];
+
+        if (!sla) {
+            output.innerHTML +=
+                `<br>5. <b>Internal SLA field nerastas</b>`;
+            return;
+        }
+
+        const cycle = sla.ongoingCycle;
+
+        if (!cycle) {
+            output.innerHTML +=
+                `<br>5. <b>ongoingCycle nerastas</b>`;
+            return;
+        }
+
+        const breachTime =
+            cycle.breachTime?.iso8601 ||
+            cycle.breachTime?.jira;
+
+        output.innerHTML = `
+            <div>
+                <strong>Support SLA deadline</strong>
+            </div>
+
+            <div style="font-size:18px;font-weight:600;margin-top:6px">
+                ${breachTime || "Deadline nerastas"}
+            </div>
+
+            <div style="margin-top:5px">
+                ${asKey} · ${supportIssue.fields?.status?.name || ""}
+            </div>
+        `;
+
+    } catch (e) {
+        console.error(e);
+
+        output.innerHTML = `
+            <b>KLAIDA</b><br>
+            ${e?.message || String(e)}
+        `;
     }
-
-    const supportIssue = supportLink.outwardIssue || supportLink.inwardIssue;
-    const asKey = supportIssue.key;
-
-    const asIssue = await jiraGet(
-      `/rest/api/2/issue/${asKey}?fields=${SLA_FIELD},status`
-    );
-
-    const sla = asIssue.fields[SLA_FIELD];
-    const cycle = sla?.ongoingCycle;
-
-    if (!cycle) {
-      output.innerHTML = `
-        <div><strong>${asKey}</strong></div>
-        <div class="sla-meta">Aktyvaus Internal SLA nėra.</div>
-      `;
-      return;
-    }
-
-    const breachTime =
-      cycle.breachTime?.iso8601 ||
-      cycle.breachTime?.jira;
-
-    const state =
-      cycle.paused === true ? "Pristabdytas" : "Skaičiuojamas";
-
-    output.innerHTML = `
-      <div>
-        <strong>${asKey}</strong>
-        · ${asIssue.fields.status?.name || ""}
-      </div>
-
-      <div class="sla-deadline">
-        ${formatDate(breachTime)}
-      </div>
-
-      <div class="sla-meta">
-        Internal SLA: ${state}
-      </div>
-    `;
-  } catch (e) {
-    console.error(e);
-    output.innerHTML =
-      '<div class="sla-error">Nepavyko gauti Support SLA duomenų.</div>';
-  }
 }
 
 loadSla();
-setInterval(loadSla, REFRESH_INTERVAL);
