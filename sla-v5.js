@@ -163,7 +163,7 @@ async function loadSla() {
       cycle?.breachTime?.jira ||
       cycle?.breachTime;
 
-    setOutput(`<strong>SLA deadline:</strong> ${formatDate(breachTime)}`);
+    setOutput(`<strong>SLA deadline: ${formatDate(breachTime)}</strong>`);
 
   } catch (e) {
     console.error("Support SLA panel error:", e);
