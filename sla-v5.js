@@ -128,7 +128,7 @@ async function loadSla() {
     });
 
     if (!supportLink) {
-      setOutput("SLA deadline: —");
+      setOutput("<strong>SLA deadline:</strong> —");
       return;
     }
 
@@ -144,7 +144,7 @@ async function loadSla() {
     const sla = supportIssue?.fields?.[SLA_FIELD];
 
     if (!sla) {
-      setOutput("SLA deadline: —");
+      setOutput("<strong>SLA deadline:</strong> —");
       return;
     }
 
@@ -154,7 +154,7 @@ async function loadSla() {
     const cycle = ongoing || latestCompleted;
 
     if (!cycle) {
-      setOutput("SLA deadline: —");
+      setOutput("<strong>SLA deadline:</strong> —");
       return;
     }
 
@@ -167,7 +167,7 @@ async function loadSla() {
 
   } catch (e) {
     console.error("Support SLA panel error:", e);
-    setOutput("SLA deadline: —");
+    setOutput("<strong>SLA deadline:</strong> —");
   }
 }
 
